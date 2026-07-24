@@ -9,7 +9,7 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 from cs336_basics.tokenizer import train_bpe, Tokenizer
-from cs336_basics.model import linear, embedding, rmsnorm
+from cs336_basics.model import linear, embedding, rmsnorm, positionwise_feedforward
 
 def run_linear(
     d_in: int,
@@ -91,7 +91,9 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    layer = positionwise_feedforward.PositionwiseFeedForward(d_model,d_ff)
+    layer.load_state_dict({"W1.W":w1_weight, "W2.W":w2_weight, "W3.W":w3_weight})
+    return layer(in_features)
 
 
 def run_scaled_dot_product_attention(
