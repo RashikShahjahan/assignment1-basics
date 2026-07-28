@@ -9,7 +9,7 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 from cs336_basics.tokenizer import train_bpe, Tokenizer
-from cs336_basics.model import linear, embedding, rmsnorm, positionwise_feedforward, rope
+from cs336_basics.model import linear, embedding, rmsnorm, positionwise_feedforward, rope, softmax
 
 def run_linear(
     d_in: int,
@@ -444,7 +444,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    return softmax.softmax(in_features, dim)
 
 
 def run_cross_entropy(
