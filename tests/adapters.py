@@ -9,7 +9,7 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 from cs336_basics.tokenizer import train_bpe, Tokenizer
-from cs336_basics.model import linear, embedding, rmsnorm, positionwise_feedforward, rope, softmax, scaled_dot_product_attention, multihead_self_attention
+from cs336_basics.model import linear, embedding, rmsnorm, positionwise_feedforward, rope, softmax, scaled_dot_product_attention, multihead_self_attention, transformer
 
 def run_linear(
     d_in: int,
@@ -287,7 +287,20 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    layer = transformer.TransformerBlock(d_model, num_heads, d_ff, theta, max_seq_len)
+    layer.load_state_dict({
+        "ln1.gain": weights["ln1.weight"],
+        "ln2.gain": weights["ln2.weight"],
+        "attn.WQ.W": weights["attn.q_proj.weight"],
+        "attn.WK.W": weights["attn.k_proj.weight"],
+        "attn.WV.W": weights["attn.v_proj.weight"],
+        "attn.WO.W": weights["attn.output_proj.weight"],
+        "ffn.W1.W": weights["ffn.w1.weight"],
+        "ffn.W2.W": weights["ffn.w2.weight"],
+        "ffn.W3.W": weights["ffn.w3.weight"],
+    })
+    token_positions = torch.arange(0, in_features.shape[-2])
+    return layer(in_features, token_positions)
 
 
 def run_transformer_lm(

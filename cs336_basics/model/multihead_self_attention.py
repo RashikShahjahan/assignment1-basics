@@ -5,7 +5,7 @@ from cs336_basics.model.scaled_dot_product_attention import scaled_dot_product_a
 from cs336_basics.model.rope import RotaryPositionalEmbedding
 
 
-from einops import rearrange, einsum
+from einops import rearrange
 
 class MultiHeadSelfAttention(nn.Module):
     def __init__(self, d_model: int, num_heads: int, theta:float |None=None, max_seq_len:int|None=None ):
@@ -25,7 +25,6 @@ class MultiHeadSelfAttention(nn.Module):
         K = rearrange(self.WK(x), "... k (num_heads head_dim) -> ... num_heads k head_dim", num_heads=self.num_heads)
         V =  rearrange(self.WV(x), "... v (num_heads head_dim) -> ... num_heads v head_dim", num_heads=self.num_heads)
         if token_positions is not None:
-            token_positions.unsqueeze(-2)
             Q = self.rope(Q, token_positions)
             K = self.rope(K, token_positions)
 
