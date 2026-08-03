@@ -9,7 +9,7 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 from cs336_basics.tokenizer import train_bpe, Tokenizer
-from cs336_basics.model import linear, embedding, rmsnorm, positionwise_feedforward, rope, softmax, scaled_dot_product_attention, multihead_self_attention, transformer
+from cs336_basics.model import Linear, Embedding, RMSNorm, PositionwiseFeedForward, RotaryPositionalEmbedding, softmax, scaled_dot_product_attention, MultiHeadSelfAttention, TransformerBlock, TransformerLM
 
 def run_linear(
     d_in: int,
@@ -29,7 +29,7 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
-    layer = linear.Linear(d_in,d_out)
+    layer = Linear(d_in,d_out)
     layer.load_state_dict({"W":weights})
     return layer(in_features)
 
@@ -55,7 +55,7 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    layer = embedding.Embedding(vocab_size,d_model)
+    layer = Embedding(vocab_size,d_model)
     layer.load_state_dict({"W":weights})
     return layer(token_ids)
 
@@ -91,7 +91,7 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    layer = positionwise_feedforward.PositionwiseFeedForward(d_model,d_ff)
+    layer = PositionwiseFeedForward(d_model,d_ff)
     layer.load_state_dict({"W1.W":w1_weight, "W2.W":w2_weight, "W3.W":w3_weight})
     return layer(in_features)
 
@@ -114,7 +114,7 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    return scaled_dot_product_attention.scaled_dot_product_attention(Q,K,V,mask)
+    return scaled_dot_product_attention(Q,K,V,mask)
 
 
 def run_multihead_self_attention(
@@ -148,7 +148,7 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    layer = multihead_self_attention.MultiHeadSelfAttention(d_model, num_heads)
+    layer = MultiHeadSelfAttention(d_model, num_heads)
     layer.load_state_dict({"WQ.W":q_proj_weight, "WK.W":k_proj_weight, "WV.W":v_proj_weight,"WO.W":o_proj_weight})
     return layer(in_features)
 
@@ -190,7 +190,7 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    layer = multihead_self_attention.MultiHeadSelfAttention(d_model, num_heads, theta, max_seq_len)
+    layer = MultiHeadSelfAttention(d_model, num_heads, theta, max_seq_len)
     layer.load_state_dict({"WQ.W":q_proj_weight, "WK.W":k_proj_weight, "WV.W":v_proj_weight,"WO.W":o_proj_weight})
     return layer(in_features, token_positions)
 
@@ -213,7 +213,7 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    layer = rope.RotaryPositionalEmbedding(theta, d_k, max_seq_len)
+    layer = RotaryPositionalEmbedding(theta, d_k, max_seq_len)
     return layer(in_query_or_key, token_positions)
 
 
@@ -287,7 +287,7 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    layer = transformer.TransformerBlock(d_model, num_heads, d_ff, theta, max_seq_len)
+    layer = TransformerBlock(d_model, num_heads, d_ff, theta, max_seq_len)
     layer.load_state_dict({
         "ln1.gain": weights["ln1.weight"],
         "ln2.gain": weights["ln2.weight"],
@@ -382,7 +382,7 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    layer = transformer.TransformerLM(vocab_size, context_length, num_layers,d_model, num_heads, d_ff, rope_theta, context_length)
+    layer = TransformerLM(vocab_size, context_length, num_layers,d_model, num_heads, d_ff, rope_theta, context_length)
     converted_weights = {
     "embedding.W": weights["token_embeddings.weight"],
     "norm.gain": weights["ln_final.weight"],
@@ -435,7 +435,7 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    layer = rmsnorm.RMSNorm(d_model, eps)
+    layer = RMSNorm(d_model, eps)
     layer.load_state_dict({"gain":weights})
     return layer(in_features)
 
@@ -490,7 +490,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    return softmax.softmax(in_features, dim)
+    return softmax(in_features, dim)
 
 
 def run_cross_entropy(
