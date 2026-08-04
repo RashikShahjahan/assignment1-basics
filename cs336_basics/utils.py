@@ -1,6 +1,8 @@
 import torch
 import math
 from collections.abc import Iterable
+import numpy.typing as npt
+import numpy as np
 
 def cross_entropy(inputs:torch.Tensor, targets:torch.Tensor)->torch.Tensor:
     log_probs = torch.log_softmax(inputs, dim=-1)
@@ -27,5 +29,13 @@ def gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: flo
             if param.grad is not None:
                 param.grad = (max_l2_norm/(norm+eps))* param.grad
 
+rng = np.random.default_rng(42)
 
-        
+def get_batch(dataset: npt.NDArray, batch_size: int, context_length: int, device: str) -> tuple[torch.Tensor, torch.Tensor]:
+    starts = rng.integers(0, len(dataset)-context_length, batch_size)[:,None]
+    offsets = np.arange(0,context_length+1)
+    indices = starts+offsets
+    
+
+    sample = dataset[indices]
+    return torch.tensor(sample[:,:context_length],device=device), torch.tensor(sample[:,1:context_length+1],device=device)

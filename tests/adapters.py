@@ -3,14 +3,14 @@ from __future__ import annotations
 import os
 from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
-
+import numpy
 import numpy.typing as npt
 import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 from cs336_basics.tokenizer import train_bpe, Tokenizer
 from cs336_basics.model import Linear, Embedding, RMSNorm, PositionwiseFeedForward, RotaryPositionalEmbedding, softmax, scaled_dot_product_attention, MultiHeadSelfAttention, TransformerBlock, TransformerLM
-from cs336_basics.utils import cross_entropy, lr_cosine_schedule, gradient_clipping
+from cs336_basics.utils import cross_entropy, lr_cosine_schedule, gradient_clipping, get_batch
 from cs336_basics.optimizer import AdamW
 
 def run_linear(
@@ -476,7 +476,9 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    raise NotImplementedError
+
+
+    return get_batch(dataset, batch_size, context_length, torch.device(device))
 
 
 def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, " ..."]:
