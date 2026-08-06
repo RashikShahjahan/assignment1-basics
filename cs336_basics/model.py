@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from einops import rearrange, einsum
+from cs336_basics.tokenizer import Tokenizer
 import math
 
 def softmax(x:torch.Tensor, i:int)->torch.Tensor:
@@ -154,4 +155,55 @@ class TransformerLM(nn.Module):
 
         return self.lm_head(self.norm(h))
 
+@torch.no_grad()
+def generate(
+    model: TransformerLM,
+    tokenizer:Tokenizer,
+    input_tokens: torch.Tensor,
+    max_tokens: int = 64,
+    temperature: float = 0.7,
+    p: float = 1.0,
+) -> torch.Tensor:
+
+    model.eval()
+    eot_token = tokenizer.encode("<|endoftext|>")
+
+    for _ in range(max_tokens):
+        logits = model(input_tokens)
+        next_token_logits = logits[:, -1, :] / temperature
+        probabilities = softmax(next_token_logits, i=-1)
+
+
+        sorted_probs, sorted_indices = torch.sort(
+            probabilities,
+            dim=-1,
+            descending=True,
+        )
+
+        cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+
+        remove_mask = cumulative_probs - sorted_probs >= p
+        sorted_probs = sorted_probs.masked_fill(remove_mask, 0.0)
+
+        sorted_probs /= sorted_probs.sum(dim=-1, keepdim=True)
+
+        sampled_position = torch.multinomial(
+            sorted_probs,
+            num_samples=1,
+        )
+
+        next_token = torch.gather(
+            sorted_indices,
+            dim=-1,
+            index=sampled_position,
+        )
+
+        input_tokens = torch.cat(
+            [input_tokens, next_token],
+            dim=-1,
+        )
+        if next_token == eot_token:
+            break
+
+    return input_tokens
 
