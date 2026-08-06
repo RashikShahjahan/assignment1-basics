@@ -19,7 +19,7 @@ def lr_cosine_schedule( it: int,max_learning_rate: float, min_learning_rate: flo
         return min_learning_rate
 
 def gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
-    eps = 10e-6
+    eps = 1e-6
     total = 0
     for param in parameters:
         if param.grad is not None:
