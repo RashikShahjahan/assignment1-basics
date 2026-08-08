@@ -5,30 +5,31 @@ from cs336_basics.utils import lr_cosine_schedule, get_batch, save_checkpoint, l
 import wandb
 import argparse
 import torch
+import time
 parser = argparse.ArgumentParser(description="Train an LLM")
 
 # Model arguments
 parser.add_argument("--vocab-size", type=int, default=10_000)
-parser.add_argument("--context-length", type=int, default=128)
+parser.add_argument("--context-length", type=int, default=256)
 parser.add_argument("--num-layers", type=int, default=4)
-parser.add_argument("--d-model", type=int, default=256)
-parser.add_argument("--num-heads", type=int, default=2)
-parser.add_argument("--d-ff", type=int, default=8)
-parser.add_argument("--theta", type=float, default=10.0)
+parser.add_argument("--d-model", type=int, default=512)
+parser.add_argument("--num-heads", type=int, default=16)
+parser.add_argument("--d-ff", type=int, default=1344)
+parser.add_argument("--theta", type=float, default=10000)
 parser.add_argument("--max-seq-len", type=int, default=64)
 
 # Optimizer arguments
-parser.add_argument("--learning-rate", type=float, default=0.1)
-parser.add_argument("--max-learning-rate", type=float, default=0.1)
-parser.add_argument("--min-learning-rate", type=float, default=0.1)
+parser.add_argument("--learning-rate", type=float, default=3e-4)
+parser.add_argument("--max-learning-rate", type=float, default=3e-4)
+parser.add_argument("--min-learning-rate", type=float, default=3e-5)
 parser.add_argument("--warmup-iters", type=int, default=1)
-parser.add_argument("--cosine-cycle-iters", type=int, default=1)
+parser.add_argument("--cosine-cycle-iters", type=int, default=100)
 
-parser.add_argument("--beta1", type=float, default=0.2)
-parser.add_argument("--beta2", type=float, default=0.1)
-parser.add_argument("--eps", type=float, default=0.1)
-parser.add_argument("--weight-decay", type=float, default=0.9)
-parser.add_argument("--max-l2-norm", type=float, default=0.9)
+parser.add_argument("--beta1", type=float, default=0.9)
+parser.add_argument("--beta2", type=float, default=0.95)
+parser.add_argument("--eps", type=float, default=1e-8)
+parser.add_argument("--weight-decay", type=float, default=0.1)
+parser.add_argument("--max-l2-norm", type=float, default=1.0)
 
 
 parser.add_argument("--train-path", type=str)
@@ -43,7 +44,7 @@ parser.add_argument(
     action="store_true",
     help="Resume training from a checkpoint",
 )
-parser.add_argument("--num-iters", type=int, default=10)
+parser.add_argument("--num-iters", type=int, default=100)
 parser.add_argument("--eval-steps", type=int, default=10)
 parser.add_argument("--save-steps", type=int, default=10)
 
@@ -84,6 +85,7 @@ def main():
 
     with wandb.init() as run:
         for t in range(index,args.num_iters):
+            start = time.perf_counter()
             model.train()
             inputs, targets = get_batch(dataset=train_dataset,batch_size=args.batch_size,context_length=args.context_length,device=args.device)
             optimizer.zero_grad()  
@@ -103,9 +105,13 @@ def main():
                     inputs, targets = get_batch(dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.context_length,device=args.device)
                     logits = model(inputs, token_positions)
                     val_loss = cross_entropy(logits, targets)
-                    run.log({"it":t,"loss":loss, "val_loss":val_loss})
+                    run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss, "val_loss":val_loss,"tokens_processed":(t+1)*args.batch_size*args.context_length},step=t)
+            else:
+                run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss,"tokens_processed":(t+1)*args.batch_size*args.context_length}, step=t)
+
             if t%args.save_steps == 0:
                 save_checkpoint(model=model, optimizer=optimizer, iteration=args.num_iters, out=args.model_path)
+
 
 if __name__ == "__main__":
     main()
