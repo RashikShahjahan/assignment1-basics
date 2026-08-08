@@ -88,14 +88,14 @@ class PositionwiseFeedForward(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         layer1 = self.W1(x)
-        layer2 = self.silu(layer1)
+        layer2 = silu(layer1)
         layer3 = self.W3(x)
         layer4 = layer2*layer3
         return self.W2(layer4)
 
 
-    def silu(self, x:torch.Tensor):
-        return x*torch.sigmoid(x)
+def silu(x:torch.Tensor):
+    return x*torch.sigmoid(x)
 
 class MultiHeadSelfAttention(nn.Module):
     def __init__(self, d_model: int, num_heads: int, theta:float |None=None, max_seq_len:int|None=None ):
@@ -169,7 +169,8 @@ def generate(
     eot_token = tokenizer.encode("<|endoftext|>")
 
     for _ in range(max_tokens):
-        logits = model(input_tokens)
+        token_positions = input_tokens.shape[-1]
+        logits = model(input_tokens, token_positions)
         next_token_logits = logits[:, -1, :] / temperature
         probabilities = softmax(next_token_logits, i=-1)
 

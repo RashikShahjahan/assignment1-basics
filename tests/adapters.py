@@ -5,10 +5,11 @@ from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
 import numpy.typing as npt
 import torch
+import numpy as np
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 from cs336_basics.tokenizer import train_bpe, Tokenizer
-from cs336_basics.model import Linear, Embedding, RMSNorm, PositionwiseFeedForward, RotaryPositionalEmbedding, softmax, scaled_dot_product_attention, MultiHeadSelfAttention, TransformerBlock, TransformerLM
+from cs336_basics.model import Linear, Embedding, RMSNorm, PositionwiseFeedForward, RotaryPositionalEmbedding, softmax, scaled_dot_product_attention, MultiHeadSelfAttention, TransformerBlock, TransformerLM, silu
 from cs336_basics.utils import cross_entropy, lr_cosine_schedule, gradient_clipping, get_batch, save_checkpoint, load_checkpoint
 from cs336_basics.optimizer import AdamW
 
@@ -452,7 +453,7 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
+    return silu(in_features)
 
 
 def run_get_batch(
@@ -477,7 +478,7 @@ def run_get_batch(
     """
 
 
-    return get_batch(dataset, batch_size, context_length, torch.device(device))
+    return get_batch(np.random.default_rng(42),dataset, batch_size, context_length, torch.device(device))
 
 
 def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, " ..."]:

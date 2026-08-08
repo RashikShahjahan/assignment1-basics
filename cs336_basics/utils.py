@@ -21,19 +21,20 @@ def lr_cosine_schedule( it: int,max_learning_rate: float, min_learning_rate: flo
 def gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
     eps = 1e-6
     total = 0
-    for param in list(parameters):
+
+    params = list(parameters)
+    for param in params:
         if param.grad is not None:
             total+=torch.sum(torch.square(param.grad))
     norm = math.sqrt(total)
 
     if norm >= max_l2_norm:
-        for param in list(parameters):
+        for param in params:
             if param.grad is not None:
                 param.grad = (max_l2_norm/(norm+eps))* param.grad
 
-rng = np.random.default_rng(42)
 
-def get_batch(dataset: npt.NDArray, batch_size: int, context_length: int, device: str) -> tuple[torch.Tensor, torch.Tensor]:
+def get_batch(rng, dataset: npt.NDArray, batch_size: int, context_length: int, device: str) -> tuple[torch.Tensor, torch.Tensor]:
     starts = rng.integers(0, len(dataset)-context_length, batch_size)[:,None]
     offsets = np.arange(0,context_length+1)
     indices = starts+offsets

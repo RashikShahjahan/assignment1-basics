@@ -55,6 +55,7 @@ parser.add_argument("--save-steps", type=int, default=10)
 
 def main():
     args = parser.parse_args()
+    torch.manual_seed(42)
 
     model = TransformerLM(
         vocab_size=args.vocab_size,
@@ -77,9 +78,11 @@ def main():
     model.to(args.device)
 
     if args.resume is True:
-        index = load_checkpoint(src=args.model_path, model=model, optimizer=optimizer)
+        index = load_checkpoint(src=args.model_path, model=model, optimizer=optimizer)+1
     else:
         index = 0
+    train_rng = np.random.default_rng(42)
+    val_rng = np.random.default_rng(42)
 
     train_dataset = np.load(args.train_path, mmap_mode='r')
     valid_dataset = np.load(args.valid_path, mmap_mode='r')
@@ -88,7 +91,7 @@ def main():
         start = time.perf_counter()
         for t in range(index,args.num_iters):
             model.train()
-            inputs, targets = get_batch(dataset=train_dataset,batch_size=args.batch_size,context_length=args.context_length,device=args.device)
+            inputs, targets = get_batch(train_rng,dataset=train_dataset,batch_size=args.batch_size,context_length=args.context_length,device=args.device)
             optimizer.zero_grad()  
             token_positions = torch.arange(0,args.context_length,device=args.device)
             logits = model(inputs, token_positions)
@@ -101,11 +104,13 @@ def main():
             gradient_clipping(model.parameters(), max_l2_norm=args.max_l2_norm)
             optimizer.step()
             if t%args.eval_steps == 0:
+                val_rng = np.random.default_rng(42)
+
                 model.eval()
                 with torch.no_grad():
                     total_val_loss = 0
                     for i in range(args.num_val_batches):
-                        inputs, targets = get_batch(dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.context_length,device=args.device)
+                        inputs, targets = get_batch(val_rng, dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.context_length,device=args.device)
                         logits = model(inputs, token_positions)
                         total_val_loss += cross_entropy(logits, targets)
                     run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss, "val_loss":total_val_loss/args.num_val_batches,"tokens_processed":(t+1)*args.batch_size*args.context_length},step=t)
