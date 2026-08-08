@@ -10,7 +10,6 @@ parser = argparse.ArgumentParser(description="Train an LLM")
 
 # Model arguments
 parser.add_argument("--vocab-size", type=int, default=10_000)
-parser.add_argument("--context-length", type=int, default=256)
 parser.add_argument("--num-layers", type=int, default=4)
 parser.add_argument("--d-model", type=int, default=512)
 parser.add_argument("--num-heads", type=int, default=16)
@@ -19,7 +18,6 @@ parser.add_argument("--theta", type=float, default=10000)
 parser.add_argument("--max-seq-len", type=int, default=256)
 
 # Optimizer arguments
-parser.add_argument("--learning-rate", type=float, default=3e-4)
 parser.add_argument("--max-learning-rate", type=float, default=3e-4)
 parser.add_argument("--min-learning-rate", type=float, default=3e-5)
 parser.add_argument("--warmup-iters", type=int, default=1)
@@ -59,7 +57,7 @@ def main():
 
     model = TransformerLM(
         vocab_size=args.vocab_size,
-        context_length=args.context_length,
+        context_length=args.max_seq_len,
         num_layers=args.num_layers,
         d_model=args.d_model,
         num_heads=args.num_heads,
@@ -67,15 +65,15 @@ def main():
         theta=args.theta,
         max_seq_len=args.max_seq_len,
     )
+    model.to(args.device)
 
     optimizer = AdamW(
         params=model.parameters(),
-        lr=args.learning_rate,
+        lr=args.max_learning_rate,
         betas=(args.beta1, args.beta2),
         eps=args.eps,
         weight_decay=args.weight_decay,
     )
-    model.to(args.device)
 
     if args.resume is True:
         index = load_checkpoint(src=args.model_path, model=model, optimizer=optimizer)+1
@@ -91,9 +89,10 @@ def main():
         start = time.perf_counter()
         for t in range(index,args.num_iters):
             model.train()
-            inputs, targets = get_batch(train_rng,dataset=train_dataset,batch_size=args.batch_size,context_length=args.context_length,device=args.device)
+            inputs, targets = get_batch(train_rng,dataset=train_dataset,batch_size=args.batch_size,context_length=args.max_seq_len
+,device=args.device)
             optimizer.zero_grad()  
-            token_positions = torch.arange(0,args.context_length,device=args.device)
+            token_positions = torch.arange(0,args.max_seq_len,device=args.device)
             logits = model(inputs, token_positions)
             loss = cross_entropy(logits,targets)
             loss.backward()
@@ -110,12 +109,12 @@ def main():
                 with torch.no_grad():
                     total_val_loss = 0
                     for i in range(args.num_val_batches):
-                        inputs, targets = get_batch(val_rng, dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.context_length,device=args.device)
+                        inputs, targets = get_batch(val_rng, dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.args.max_seq_len,device=args.device)
                         logits = model(inputs, token_positions)
                         total_val_loss += cross_entropy(logits, targets)
-                    run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss, "val_loss":total_val_loss/args.num_val_batches,"tokens_processed":(t+1)*args.batch_size*args.context_length},step=t)
+                    run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss, "val_loss":total_val_loss/args.num_val_batches,"tokens_processed":(t+1)*args.batch_size*args.args.max_seq_len},step=t)
             else:
-                run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss,"tokens_processed":(t+1)*args.batch_size*args.context_length}, step=t)
+                run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss,"tokens_processed":(t+1)*args.batch_size*args.args.max_seq_len}, step=t)
 
             if t%args.save_steps == 0:
                 save_checkpoint(model=model, optimizer=optimizer, iteration=t, out=args.model_path)

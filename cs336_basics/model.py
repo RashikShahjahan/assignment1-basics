@@ -164,12 +164,12 @@ def generate(
     temperature: float = 0.7,
     p: float = 1.0,
 ) -> torch.Tensor:
-
+    max_tokens = max(max_tokens, model.context_length)
     model.eval()
     eot_token = tokenizer.encode("<|endoftext|>")
 
     for _ in range(max_tokens):
-        token_positions = input_tokens.shape[-1]
+        token_positions = torch.arange(0, input_tokens.shape[-1])
         logits = model(input_tokens, token_positions)
         next_token_logits = logits[:, -1, :] / temperature
         probabilities = softmax(next_token_logits, i=-1)
