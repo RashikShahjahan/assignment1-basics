@@ -28,10 +28,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    """
     profiler = cProfile.Profile()
 
     profiler.enable()
+    """
     main()
+    """
     profiler.disable()
 
     profiler.dump_stats("train_bpe.prof")
@@ -41,5 +44,5 @@ if __name__ == "__main__":
     stats.sort_stats("cumulative")
     stats.print_stats(40)
 
-
+    """
 
