@@ -21,13 +21,13 @@ def lr_cosine_schedule( it: int,max_learning_rate: float, min_learning_rate: flo
 def gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
     eps = 1e-6
     total = 0
-    for param in parameters:
+    for param in list(parameters):
         if param.grad is not None:
             total+=torch.sum(torch.square(param.grad))
     norm = math.sqrt(total)
 
     if norm >= max_l2_norm:
-        for param in parameters:
+        for param in list(parameters):
             if param.grad is not None:
                 param.grad = (max_l2_norm/(norm+eps))* param.grad
 
@@ -40,7 +40,7 @@ def get_batch(dataset: npt.NDArray, batch_size: int, context_length: int, device
     
 
     sample = dataset[indices]
-    return torch.tensor(sample[:,:context_length],device=device), torch.tensor(sample[:,1:context_length+1],device=device)
+    return torch.tensor(sample[:,:context_length],device=device, dtype=torch.long), torch.tensor(sample[:,1:context_length+1],device=device, dtype=torch.long)
 
 def save_checkpoint(model: torch.nn.Module, optimizer:torch.optim.Optimizer, iteration:int, out: str | os.PathLike | typing.BinaryIO | typing.IO[bytes]):
     model_state = model.state_dict()

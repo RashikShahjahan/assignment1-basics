@@ -16,7 +16,7 @@ parser.add_argument("--d-model", type=int, default=512)
 parser.add_argument("--num-heads", type=int, default=16)
 parser.add_argument("--d-ff", type=int, default=1344)
 parser.add_argument("--theta", type=float, default=10000)
-parser.add_argument("--max-seq-len", type=int, default=64)
+parser.add_argument("--max-seq-len", type=int, default=256)
 
 # Optimizer arguments
 parser.add_argument("--learning-rate", type=float, default=3e-4)
@@ -36,6 +36,7 @@ parser.add_argument("--train-path", type=str)
 parser.add_argument("--valid-path", type=str)
 parser.add_argument("--batch-size", type=int, default=1)
 parser.add_argument("--valid-batch-size", type=int, default=1)
+parser.add_argument("--num-val-batches", type=int, default=1)
 
 parser.add_argument("--device", type=str)
 parser.add_argument("--model-path", type=str)
@@ -80,12 +81,12 @@ def main():
     else:
         index = 0
 
-    train_dataset = np.load(args.train_path)
-    valid_dataset = np.load(args.valid_path)
+    train_dataset = np.load(args.train_path, mmap_mode='r')
+    valid_dataset = np.load(args.valid_path, mmap_mode='r')
 
     with wandb.init() as run:
+        start = time.perf_counter()
         for t in range(index,args.num_iters):
-            start = time.perf_counter()
             model.train()
             inputs, targets = get_batch(dataset=train_dataset,batch_size=args.batch_size,context_length=args.context_length,device=args.device)
             optimizer.zero_grad()  
@@ -102,15 +103,18 @@ def main():
             if t%args.eval_steps == 0:
                 model.eval()
                 with torch.no_grad():
-                    inputs, targets = get_batch(dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.context_length,device=args.device)
-                    logits = model(inputs, token_positions)
-                    val_loss = cross_entropy(logits, targets)
-                    run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss, "val_loss":val_loss,"tokens_processed":(t+1)*args.batch_size*args.context_length},step=t)
+                    total_val_loss = 0
+                    for i in range(args.num_val_batches):
+                        inputs, targets = get_batch(dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.context_length,device=args.device)
+                        logits = model(inputs, token_positions)
+                        total_val_loss += cross_entropy(logits, targets)
+                    run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss, "val_loss":total_val_loss/args.num_val_batches,"tokens_processed":(t+1)*args.batch_size*args.context_length},step=t)
             else:
                 run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss,"tokens_processed":(t+1)*args.batch_size*args.context_length}, step=t)
 
             if t%args.save_steps == 0:
-                save_checkpoint(model=model, optimizer=optimizer, iteration=args.num_iters, out=args.model_path)
+                save_checkpoint(model=model, optimizer=optimizer, iteration=t, out=args.model_path)
+        save_checkpoint(model=model, optimizer=optimizer, iteration=t, out=args.model_path)
 
 
 if __name__ == "__main__":

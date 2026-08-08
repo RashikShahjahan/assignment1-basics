@@ -5,21 +5,21 @@ import json
 
 def main() -> None:
     vocab, merges = train_bpe(
-        input_path="data/TinyStoriesV2-GPT4-valid.txt",
-        vocab_size=1000,
+        input_path="data/TinyStoriesV2-GPT4-train.txt",
+        vocab_size=10000,
         special_tokens=["<|endoftext|>"],
         num_processes=8,
     )
 
     for tok1, tok2 in merges:
-        with open("data/TinyStoriesV2-GPT4-valid-merges.txt",'a') as merges_file:
+        with open("data/TinyStoriesV2-GPT4-train-merges.txt",'a') as merges_file:
                 merges_file.write(f"{tok1.hex()} {tok2.hex()} \n")
 
     hex_vocab = {}
     for index, token_bytes in vocab.items():
         hex_vocab[token_bytes.hex()] = index
 
-    with open("data/TinyStoriesV2-GPT4-valid-vocab.json",'w') as vocab_file:
+    with open("data/TinyStoriesV2-GPT4-train-vocab.json",'w') as vocab_file:
         json.dump(hex_vocab,vocab_file)
 
 
