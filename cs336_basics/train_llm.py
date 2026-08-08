@@ -6,6 +6,7 @@ import wandb
 import argparse
 import torch
 import time
+from cs336_basics.tokenizer import Tokenizer
 parser = argparse.ArgumentParser(description="Train an LLM")
 
 # Model arguments
@@ -82,6 +83,8 @@ def main():
     train_rng = np.random.default_rng(42)
     val_rng = np.random.default_rng(42)
 
+
+
     train_dataset = np.load(args.train_path, mmap_mode='r')
     valid_dataset = np.load(args.valid_path, mmap_mode='r')
 
@@ -89,8 +92,7 @@ def main():
         start = time.perf_counter()
         for t in range(index,args.num_iters):
             model.train()
-            inputs, targets = get_batch(train_rng,dataset=train_dataset,batch_size=args.batch_size,context_length=args.max_seq_len
-,device=args.device)
+            inputs, targets = get_batch(train_rng,dataset=train_dataset,batch_size=args.batch_size,context_length=args.max_seq_len ,device=args.device)
             optimizer.zero_grad()  
             token_positions = torch.arange(0,args.max_seq_len,device=args.device)
             logits = model(inputs, token_positions)
@@ -109,12 +111,12 @@ def main():
                 with torch.no_grad():
                     total_val_loss = 0
                     for i in range(args.num_val_batches):
-                        inputs, targets = get_batch(val_rng, dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.args.max_seq_len,device=args.device)
+                        inputs, targets = get_batch(val_rng, dataset=valid_dataset,batch_size=args.valid_batch_size,context_length=args.max_seq_len,device=args.device)
                         logits = model(inputs, token_positions)
                         total_val_loss += cross_entropy(logits, targets)
                     run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss, "val_loss":total_val_loss/args.num_val_batches,"tokens_processed":(t+1)*args.batch_size*args.args.max_seq_len},step=t)
             else:
-                run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss,"tokens_processed":(t+1)*args.batch_size*args.args.max_seq_len}, step=t)
+                run.log({"elapsed_seconds":time.perf_counter()-start,"lr":lr,"loss":loss,"tokens_processed":(t+1)*args.batch_size*args.max_seq_len}, step=t)
 
             if t%args.save_steps == 0:
                 save_checkpoint(model=model, optimizer=optimizer, iteration=t, out=args.model_path)

@@ -556,6 +556,11 @@ class Tokenizer:
             for token_id, token_bytes in vocab.items()
         }
 
+        self.merge_rank = {
+            pair: rank
+            for rank, pair in enumerate(merges)
+        }
+
     @classmethod
     def from_files(
         cls,
@@ -585,26 +590,46 @@ class Tokenizer:
 
         return cls(vocab, merges, special_tokens)
 
+
     def _encode_pretoken(self, pretoken: bytes) -> list[int]:
-        # Special tokens must remain atomic.
         if pretoken in self.special_token_bytes:
             return [self.token_to_id[pretoken]]
 
-        # Iterating over bytes produces integers, so convert each byte
-        # back into a one-byte bytes object.
-        tokens = [bytes([byte_value]) for byte_value in pretoken]
+        tokens = [bytes([b]) for b in pretoken]
 
-        # Merges are already ordered by merge rank.
-        for left, right in self.merges:
-            merged = left + right
-            index = 0
+        while len(tokens) > 1:
+            best_pair = None
+            best_rank = float("inf")
 
-            while index < len(tokens) - 1:
-                if tokens[index] == left and tokens[index + 1] == right:
-                    tokens[index : index + 2] = [merged]
-                    index += 1
+            for pair in zip(tokens, tokens[1:]):
+                rank = self.merge_rank.get(pair)
+
+                if rank is not None and rank < best_rank:
+                    best_rank = rank
+                    best_pair = pair
+
+            if best_pair is None:
+                break
+
+            left, right = best_pair
+            merged_token = left + right
+
+            merged = []
+            i = 0
+
+            while i < len(tokens):
+                if (
+                    i + 1 < len(tokens)
+                    and tokens[i] == left
+                    and tokens[i + 1] == right
+                ):
+                    merged.append(merged_token)
+                    i += 2
                 else:
-                    index += 1
+                    merged.append(tokens[i])
+                    i += 1
+
+            tokens = merged
 
         return [self.token_to_id[token] for token in tokens]
 
